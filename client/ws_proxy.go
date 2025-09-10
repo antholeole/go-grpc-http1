@@ -50,6 +50,7 @@ type http2WebSocketProxy struct {
 	insecure   bool
 	endpoint   string
 	httpClient *http.Client
+	headers    map[string]string
 }
 
 type websocketConn struct {
@@ -230,9 +231,15 @@ func (h *http2WebSocketProxy) ServeHTTP(w http.ResponseWriter, req *http.Request
 	url := *req.URL // Copy the value, so we do not overwrite the URL.
 	url.Scheme = scheme
 	url.Host = h.endpoint
+
+	header := req.Header.Clone()
+	for k, v := range h.headers {
+		header.Set(k, v)
+	}
+
 	conn, resp, err := websocket.Dial(req.Context(), url.String(), &websocket.DialOptions{
 		// Add the gRPC headers to the WebSocket handshake request.
-		HTTPHeader:   req.Header,
+		HTTPHeader:   header,
 		HTTPClient:   h.httpClient,
 		Subprotocols: subprotocols,
 		// gRPC already performs compression, so no need for WebSocket to add compression as well.
@@ -292,7 +299,7 @@ func (h *http2WebSocketProxy) ServeHTTP(w http.ResponseWriter, req *http.Request
 	_ = conn.Close(websocket.StatusNormalClosure, "")
 }
 
-func createClientWSProxy(endpoint string, tlsClientConf *tls.Config) (*http.Server, pipeconn.DialContextFunc, error) {
+func createClientWSProxy(endpoint string, tlsClientConf *tls.Config, headers map[string]string) (*http.Server, pipeconn.DialContextFunc, error) {
 	handler := &http2WebSocketProxy{
 		insecure: tlsClientConf == nil,
 		endpoint: endpoint,
@@ -301,6 +308,7 @@ func createClientWSProxy(endpoint string, tlsClientConf *tls.Config) (*http.Serv
 				TLSClientConfig: tlsClientConf,
 			},
 		},
+		headers: headers,
 	}
 	return makeProxyServer(handler)
 }

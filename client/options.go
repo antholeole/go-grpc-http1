@@ -23,6 +23,7 @@ type connectOptions struct {
 	forceDowngrade bool
 	useWebSocket   bool
 	contentType    string
+	headers        map[string]string
 }
 
 // ConnectOption is an option that can be passed to the `ConnectViaProxy` method.
@@ -73,6 +74,12 @@ func WithContentType(contentType string) ConnectOption {
 	return contentTypeOption(contentType)
 }
 
+// WithHeaders returns a connection option that instructs the
+// client to add the given headers to the underlying request.
+func WithHeaders(headers map[string]string) ConnectOption {
+	return withHeadersOption(headers)
+}
+
 type dialOptsOption []grpc.DialOption
 
 func (o dialOptsOption) apply(opts *connectOptions) {
@@ -107,4 +114,15 @@ type contentTypeOption string
 
 func (o contentTypeOption) apply(opts *connectOptions) {
 	opts.contentType = string(o)
+}
+
+type withHeadersOption map[string]string
+
+func (o withHeadersOption) apply(opts *connectOptions) {
+	if opts.headers == nil {
+		opts.headers = make(map[string]string)
+	}
+	for k, v := range o {
+		opts.headers[k] = v
+	}
 }

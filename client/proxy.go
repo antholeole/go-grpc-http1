@@ -79,7 +79,7 @@ func writeError(w http.ResponseWriter, err error) {
 	w.Header().Set("Grpc-Message", grpcproto.EncodeGrpcMessage(errMsg))
 }
 
-func createReverseProxy(endpoint string, transport http.RoundTripper, insecure, forceDowngrade bool, contentType string) *httputil.ReverseProxy {
+func createReverseProxy(endpoint string, transport http.RoundTripper, insecure, forceDowngrade bool, contentType string, headers map[string]string) *httputil.ReverseProxy {
 	scheme := "https"
 	if insecure {
 		scheme = "http"
@@ -101,6 +101,10 @@ func createReverseProxy(endpoint string, transport http.RoundTripper, insecure, 
 				// Without removing old header, some gRPC-Web servers will not work,
 				// because an HTTP client will send both old and new header values.
 				req.Header.Set("Content-Type", contentType)
+			}
+
+			for k, v := range headers {
+				req.Header.Set(k, v)
 			}
 
 			req.URL.Scheme = scheme
@@ -150,12 +154,12 @@ func createTransport(tlsClientConf *tls.Config, forceHTTP2 bool, extraH2ALPNs []
 	return transport, nil
 }
 
-func createClientProxy(endpoint string, tlsClientConf *tls.Config, forceHTTP2, forceDowngrade bool, extraH2ALPNs []string, contentType string) (*http.Server, pipeconn.DialContextFunc, error) {
+func createClientProxy(endpoint string, tlsClientConf *tls.Config, forceHTTP2, forceDowngrade bool, extraH2ALPNs []string, contentType string, headers map[string]string) (*http.Server, pipeconn.DialContextFunc, error) {
 	transport, err := createTransport(tlsClientConf, forceHTTP2, extraH2ALPNs)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "creating transport")
 	}
-	proxy := createReverseProxy(endpoint, transport, tlsClientConf == nil, forceDowngrade, contentType)
+	proxy := createReverseProxy(endpoint, transport, tlsClientConf == nil, forceDowngrade, contentType, headers)
 	return makeProxyServer(proxy)
 }
 
@@ -177,9 +181,9 @@ func ConnectViaProxy(ctx context.Context, endpoint string, tlsClientConf *tls.Co
 	var err error
 
 	if connectOpts.useWebSocket {
-		proxy, dialCtx, err = createClientWSProxy(endpoint, tlsClientConf)
+		proxy, dialCtx, err = createClientWSProxy(endpoint, tlsClientConf, connectOpts.headers)
 	} else {
-		proxy, dialCtx, err = createClientProxy(endpoint, tlsClientConf, connectOpts.forceHTTP2, connectOpts.forceDowngrade, connectOpts.extraH2ALPNs, connectOpts.contentType)
+		proxy, dialCtx, err = createClientProxy(endpoint, tlsClientConf, connectOpts.forceHTTP2, connectOpts.forceDowngrade, connectOpts.extraH2ALPNs, connectOpts.contentType, connectOpts.headers)
 	}
 
 	if err != nil {

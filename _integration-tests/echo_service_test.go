@@ -326,6 +326,17 @@ func TestWSWithEchoService(t *testing.T) {
 			expectClientStreamOK:    true,
 			expectBidiStreamOK:      true,
 		},
+		{
+			targetID:                "downgrading-grpc",
+			behindHTTP1ReverseProxy: true,
+			useProxy:                true,
+			useWebSocket:            true,
+			customHeaders:           map[string]string{"header-echo": "custom-header-value"},
+			expectUnaryOK:           true,
+			expectServerStreamOK:    true,
+			expectClientStreamOK:    true,
+			expectBidiStreamOK:      true,
+		},
 	}
 
 	for _, c := range cases {
@@ -414,15 +425,6 @@ func (c *testCase) Run(t *testing.T, cfg *testConfig) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	headerStr := fmt.Sprintf("%s-Hdr", t.Name())
-	trailerStr := fmt.Sprintf("%s-Trl", t.Name())
-
-	ctx = metadata.AppendToOutgoingContext(
-		ctx,
-		"header-echo", headerStr,
-		"trailer-echo", trailerStr,
-	)
-
 	if c.useProxy {
 		opts := []client.ConnectOption{client.DialOpts(grpc.WithTransportCredentials(insecure.NewCredentials()))}
 		if !c.behindHTTP1ReverseProxy {
@@ -432,6 +434,9 @@ func (c *testCase) Run(t *testing.T, cfg *testConfig) {
 
 		if len(c.customContentType) > 0 {
 			opts = append(opts, client.WithContentType(c.customContentType))
+		}
+		if len(c.customHeaders) > 0 {
+			opts = append(opts, client.WithHeaders(c.customHeaders))
 		}
 
 		cc, err = client.ConnectViaProxy(ctx, targetAddr, nil, opts...)
