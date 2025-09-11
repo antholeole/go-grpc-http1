@@ -104,6 +104,7 @@ func createReverseProxy(endpoint string, transport http.RoundTripper, insecure, 
 			}
 
 			for k, v := range headers {
+				fmt.Printf("setting %s header %s\n", k, v)
 				req.Header.Set(k, v)
 			}
 
@@ -175,6 +176,8 @@ func ConnectViaProxy(ctx context.Context, endpoint string, tlsClientConf *tls.Co
 	for _, opt := range opts {
 		opt.apply(&connectOpts)
 	}
+
+	fmt.Printf("sizeof hdrs: %d", len(connectOpts.headers))
 
 	var proxy *http.Server
 	var dialCtx pipeconn.DialContextFunc

@@ -14,9 +14,12 @@
 
 package client
 
-import "maps"
+import (
+	"fmt"
+	"maps"
 
-import "google.golang.org/grpc"
+	"google.golang.org/grpc"
+)
 
 type connectOptions struct {
 	dialOpts       []grpc.DialOption
@@ -126,4 +129,5 @@ func (o withHeadersOption) apply(opts *connectOptions) {
 	}
 
 	maps.Copy(opts.headers, o)
+	fmt.Printf("opts.headers: %d", len(opts.headers))
 }
