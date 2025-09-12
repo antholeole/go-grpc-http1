@@ -104,6 +104,7 @@ func createReverseProxy(endpoint string, transport http.RoundTripper, insecure, 
 			}
 
 			for k, v := range headers {
+				fmt.Printf("%s %s\n", k, v)
 				req.Header.Set(k, v)
 			}
 
